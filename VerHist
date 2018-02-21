@@ -1,0 +1,18 @@
+2/21/2018
+Features:
+    * Peak Shapes:              Gaussian, Voigt
+    * Number curves per peak:   - free - 
+    * Plotting:                 each peak, background sub data
+    * Background Subtraction:   Polynomial
+
+v0.1:  
+-Constructed all data structures and relevant scripts.  
+-Implemented plotting functionality and basic curve functions.  
+-Currently only operates for data mode 1
+
+To implement:
+Background correction to set all values positive
+Error tracking.  (Covariance matrix?  Residual?)
+Block visualization.  Proper overarching visualization?
+Timing protocol to assess efficiency
+
