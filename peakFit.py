@@ -1,4 +1,5 @@
-def peakFit(data, LDatum, RDatum, peakShape, numCurves):
+def peakFit(data, LDatum, RDatum, peakShape, numCurves,
+             savePath = None, filename = None):
     '''
     Peak fitting function.  Fits with ?various? functions?  
     Implements custom functions for allowing multiple peaks of same shape
@@ -16,8 +17,11 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves):
     from scipy import integrate, signal
     from scipy.special import wofz
     import numpy as np
+    import matplotlib
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    
+    import sys
+
     # Convert left and right bounds to integers for indexing
     LDat = int(LDatum)
     RDat = int(RDatum)
@@ -107,10 +111,15 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves):
         # Combine bounds into tuple for input
         bounds = tuple([boundLower, boundUpper])
         
+        try:
         # Curve fit function call using guess and bounds
-        popt, pcov = curve_fit(voigtFn, xData[domain], yData[domain], 
-                       bounds=bounds, p0=guess)
-    elif peakshape == 'Gaussian':############################################
+            popt, pcov = curve_fit(voigtFn, xData[domain], yData[domain], 
+                                    bounds=bounds, p0=guess)
+        except RuntimeError as e:
+            print(e) 
+            popt = np.array(guess)
+
+    elif peakShape == 'Gaussian':############################################
         func = gaussFn
         # Initialize guess params and bounds for number of curves
         boundUpper = []
@@ -122,7 +131,7 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves):
             # Space peak locations evenly
             xPosGuess = (xData[LDat] + xRange * (i+1) / (numCurves+1))
             
-            guess += [xPosGuess, np.mean(yData[domain]), 1, 0.05]
+            guess += [xPosGuess, np.mean(yData[domain]), 100, 0.05]
             
             # concatenate lists for bounds
             boundLower += [xData[LDat], np.min(yData[domain]), 0, 0]
@@ -130,28 +139,44 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves):
             
         # Combine bounds into tuple for input
         bounds = tuple([boundLower, boundUpper])
-        popt, pcov = curve_fit(gaussFn, xData[domain], yData[domain], 
-                       bounds=([0.9*xData[loc] ,np.min(yData),0,0],
-                                [1.1*xData[loc],np.max(yData),np.inf,np.inf]))
+
+        try:
+            # Curve fit function
+            popt, pcov = curve_fit(gaussFn, xData[domain], yData[domain], 
+                                    bounds=bounds, p0=guess)
+        except RuntimeError as e:
+            print(e)
+            popt = np.array(guess)
    
 
-    # Plot setup
-    #plt.figure(1)
-    #plt.plot(xData[domain], yData[domain], label='data')
-    #plt.plot(xData[domain], func(xData[domain], *popt), label='combined data')
-    
+    if (savePath != None) and (filename != None):
+        plt.figure(figsize=(8,8))
+
+
     # Organize final parameters into array
     finalParams = []
     for j in range(numCurves):   # Plot each individual curve
         L = 0 + j * len(popt) / numCurves  # Sep popt array
         R = (j+1) * len(popt) / numCurves
-        #plt.plot(xData[domain], func(xData[domain], *guess[L:R]), 
-                 #'--', label='guessed curve: ' + str(j))
-        #plt.plot(xData[domain], func(xData[domain], *popt[L:R]), 
-                 #'.', label='optimized curve: ' + str(j))
-        
+
         finalParams.append(popt[L:R])
         
-    #plt.plot(xData[loc], yData[loc], marker='o') # Max position
+        if (savePath != None) and (filename != None): # Plot setup
+            plt.plot(xData[domain], func(xData[domain], *guess[L:R]), 
+                    '--', label='guessed curve: ' + str(j))
+            plt.plot(xData[domain], func(xData[domain], *popt[L:R]), 
+                    '.', label='optimized curve: ' + str(j))
+        
+    # Finish plotting 
+    if (savePath != None) and (filename != None):
+        plt.plot(xData[domain], yData[domain], label='data')
+        plt.plot(xData[domain], func(xData[domain], *popt), label='combined data')
+        plt.plot(xData[loc], yData[loc], marker='o') # Max position
+        plt.legend()
+
+        plt.savefig(savePath + str(filename) + 'peakAt_' + '{:.3f}'.format(xData[loc]) + '.png')
+        
+        plt.close()
     
+        print('Plot generated for peak at: {:.3f}'.format(xData[loc]))
     return finalParams

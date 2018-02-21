@@ -1,7 +1,7 @@
 import numpy as np
 from peakFit import peakFit
 
-def bumpFindFit(dat, peakShape, numCurves):
+def bumpFindFit(dat, peakShape, numCurves, savePath = None, filename = None):
     '''
     Get bumps from block data structure
     Use hill climbing to find local max
@@ -78,10 +78,17 @@ def bumpFindFit(dat, peakShape, numCurves):
         # indices for start and end of bump
         leftDatum  = idLeftVec[currVec[0]] - 1
         rightDatum = idRightVec[currVec[currNumBlocks-1]] - 1
-        
-        # Get parameters from peak fit
-        optParam = peakFit(dat.subData, leftDatum, rightDatum, peakShape, numCurves)
        
+        ############################################################################## 
+        # Get parameters from peak fit
+        if (savePath != None) and (filename != None):
+            optParam = peakFit(dat.subData, leftDatum, rightDatum, 
+                                peakShape, numCurves, savePath, filename)
+        else:
+            optParam = peakFit(dat.subData, leftDatum, rightDatum, 
+                                peakShape, numCurves)
+       
+        ############################################################################## 
         # add to dictionary
         paramDict[k] = optParam
 
