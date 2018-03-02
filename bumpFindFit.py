@@ -3,12 +3,13 @@ from peakFit import peakFit
 
 def bumpFindFit(dat, peakShape, numCurves, savePath = None, filename = None):
     '''
-    Get bumps from block data structure
-    Use hill climbing to find local max
-    incorporate blocks that climbed to bump
-    Fit bumps using desired curve and number per peak
-    input: BlockData structure
-    output: peaks data structure....
+    Separate data into peaks and fit them.  Plot fitted peaks and plot output.
+    *Use hill climbing to find local max
+    *Incorporate blocks that climbed to bump as peaks
+    *Fit bumps using desired curve and number per peak
+    input: data array (x,y), desired peak shape, num curves per peak, save info
+    output: peak data dictionary
+            #: Array of arrays [numCurves x numParamsPerCurve]
     '''
 
     numBlocks = len(dat.rateVec)
@@ -47,22 +48,23 @@ def bumpFindFit(dat, peakShape, numCurves, savePath = None, filename = None):
     hopIndex = np.array(range(numBlocks)) # init: all blocks point to self
     hopIndex = hopIndex.astype(int)  # cast all as int
     ctr = 0
-    while ctr < 10000000:
+    while ctr <= 10000000:
         newIndex = idMax[hopIndex]  # Point each to highest neighbor
 
         if np.array_equal(newIndex, hopIndex):
             break
         else:
             hopIndex = newIndex.astype(int)
-
-
+            
         ctr += 1
+        
+        if ctr == 10000000:
+            print('Hill climbing did not converge...?')
 
     idMax = np.unique(hopIndex)
     numMax = len(idMax)
 
-    # collect data for each bump.
-
+    # collect data for each bump (peak).
     iCntMax = 0
 
     paramDict = {'numCurves': numCurves, 'peakShape': peakShape}

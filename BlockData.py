@@ -1,16 +1,21 @@
 import numpy as np
-######Data wrapper object for BBA.  Contains parameters and data
-### Parameters
-### Data: np array.  depVar = data[0], indVar = data[1]
-#######
+
 class BlockData:
-    
+'''
+Data wrapper object holding information for bayesian block analysis
+'''   
     def __init__(self, dataArray, fit_order, ncp_prior):
+    '''
+    Initializes BlockData object with data array and basic parameters
+    '''
         self.data = np.array(dataArray)
         self.fit_order = fit_order
         self.ncp_prior = ncp_prior
         
     def bkgdSub(self, **kwarg):
+    '''
+    Perform crude polynomial background subtraction and offset data to be positive
+    '''
         if 'fitOrder' in kwarg:
             self.fit_order = fitOrder
             
@@ -18,18 +23,24 @@ class BlockData:
             self.fitCoeff = np.polyfit(self.data[0], self.data[1], self.fit_order)
             fitDataX = self.data[0]
             fitDataY = self.data[1] - np.polyval(self.fitCoeff, self.data[0])
+            if np.min(fitDataY) < 0:
+                fitDataY += fitDataY + np.absolute(np.min(fitDataY))
             self.subData = np.array([fitDataX, fitDataY])
             
             print 'Quadratic background subtraction completed'
             
-    def trimSubData(self):
-        self.subData = np.array([self.subData[0,11:-50], self.subData[1,11:-50]])
+    def trimSubData(self,trimLen=50):
+    '''
+    Trim 50 data points from both ends of data.
+    '''
+        self.subData = np.array([self.subData[0,trimLen:-trimLen], 
+                                    self.subData[1,trimLen:-trimLen]])
 
     def blockFinder(self):
-    #### Bayesian Block finding algorithm
-    ## Input: BlockData structure 
-    ##      (Seems to be using point measurement type, code for that alone at first)
-    ## Output: BlockData structure with new field denoting blocks and bumps.
+    ''''
+    Performs Bayesian Block finding on subData and records change point array
+    Algorithm description is hard....
+    '''
         data_mode = 3
         numPts = len(self.cellData)
         tt = np.arange(numPts)
@@ -80,7 +91,8 @@ class BlockData:
 
         cptUse = np.insert(cp, 0, 0)
 
-        #print('cptUse start: {0}, end: {1}, len: {2}'.format(cptUse[0],cptUse[-1], len(cptUse)))
+        #print('cptUse start: {0}, end: {1}, len: {2}'.format(cptUse[0],
+                                                        #cptUse[-1], len(cptUse)))
         #print('lenCP: {0}'.format(len(cp)))
         
         # what does this stuff do I don't know...

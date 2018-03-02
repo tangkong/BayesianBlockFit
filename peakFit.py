@@ -1,3 +1,15 @@
+from scipy.optimize import curve_fit
+from scipy import integrate, signal
+from scipy.special import wofz
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import sys
+
+#import personal modules
+from peakShapes import voigtFn, gaussFn
+
 def peakFit(data, LDatum, RDatum, peakShape, numCurves,
              savePath = None, filename = None):
     '''
@@ -13,14 +25,6 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
     Output: ndarray of optimized parameters. 
         result[i] = opt. param of curve i
     ''' 
-    from scipy.optimize import curve_fit
-    from scipy import integrate, signal
-    from scipy.special import wofz
-    import numpy as np
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    import sys
 
     # Convert left and right bounds to integers for indexing
     LDat = int(LDatum)
@@ -41,52 +45,6 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
     #############################################################################
     ### Define various peak shape functions
     #############################################################################
-    def voigtFn(x, *params):
-        """
-        Return Voigt line shape centered at x0 with intensity I
-        alpha: Lorentzian comp HWHM
-        gamma: Gaussian comp HWHM
-        I: Intensity
-        x0, y0: Offsets
-        [x0, y0, I, alpha, gamma] * numCurves
-        """
-        result = 0
-        for i in range(0,len(params),5):
-            x0    = params[i]
-            y0    = params[i+1]
-            I     = params[i+2]
-            alpha = params[i+3]
-            gamma = params[i+4]
-        
-            sigma = alpha / np.sqrt(2 * np.log(2))
-
-            result = result + I * np.real(wofz(((x-x0) + 1j*gamma)/sigma/np.sqrt(2))) / sigma / np.sqrt(2*np.pi) + y0
-        
-        return result
-
-
-    def gaussFn(x, *params):
-        """
-        Return Gaussianb line shape centered at x0 with intensity I
-        sigma: Gaussian comp stdev
-        I: Intensity
-        x0, y0: Offsets
-        x0, y0, I, sigma
-        """
-        result = 0
-        for i in range(0,len(params),4):
-            x0    = params[i]
-            y0    = params[i+1]
-            I     = params[i+2]
-            sigma = params[i+3]
-            
-            result += I * np.exp(-(x-x0)**2 / (2*sigma**2)) + y0
-        
-        return result
-    #############################################################################
-    ### End peak functions
-    ### Begin fitting using desired function
-    #############################################################################    
     
     xRange = xData[RDat] - xData[LDat]
 
@@ -126,12 +84,14 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
         boundLower = []
         guess = []
         
+        
+        xWidth = xData[RDat] - xData[LDat]
         # parameter array: [x0, y0, Intensity, sigma]
         for i in range(numCurves): # for each curve
             # Space peak locations evenly
             xPosGuess = (xData[LDat] + xRange * (i+1) / (numCurves+1))
             
-            guess += [xPosGuess, np.mean(yData[domain]), 100, 0.05]
+            guess += [xPosGuess, np.mean(yData[domain]), np.max(yData[domain]), xWidth/2]
             
             # concatenate lists for bounds
             boundLower += [xData[LDat], np.min(yData[domain]), 0, 0]
@@ -174,7 +134,8 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
         plt.plot(xData[loc], yData[loc], marker='o') # Max position
         plt.legend()
 
-        plt.savefig(savePath + str(filename) + 'peakAt_' + '{:.3f}'.format(xData[loc]) + '.png')
+        plt.savefig(savePath + str(filename) + 'peakAt_' + 
+                        '{:.3f}'.format(xData[loc]) + '.png')
         
         plt.close()
     
