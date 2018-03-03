@@ -10,8 +10,16 @@ v0.1:
 -Implemented plotting functionality and basic curve functions.  
 -Currently only operates for data mode 1
 
+v0.2:
+-Changed peak fitting algorithm.  Populate initial guess paramters
+    for each curve based on residual.  Optimize all together
+    Increases number of curve_fit calls, but does seem to help fits
+-Offset all data values to be positive.
+-Reporting FWHM based on curve profiles
+-Implemented report for literal FWHM
+
+
 To implement:
-Background correction to set all values positive
 Error tracking.  (Covariance matrix?  Residual?)
 Block visualization.  Proper overarching visualization?
 Timing protocol to assess efficiency

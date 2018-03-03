@@ -1,46 +1,49 @@
 import numpy as np
 
 class BlockData:
-'''
-Data wrapper object holding information for bayesian block analysis
-'''   
+    '''
+    Data wrapper object holding information for bayesian block analysis
+    '''   
+    
+    
+    
     def __init__(self, dataArray, fit_order, ncp_prior):
-    '''
-    Initializes BlockData object with data array and basic parameters
-    '''
+        '''
+        Initializes BlockData object with data array and basic parameters
+        '''
         self.data = np.array(dataArray)
         self.fit_order = fit_order
         self.ncp_prior = ncp_prior
         
     def bkgdSub(self, **kwarg):
-    '''
-    Perform crude polynomial background subtraction and offset data to be positive
-    '''
+        '''
+        Perform crude polynomial background subtraction and offset data to be positive
+        '''
         if 'fitOrder' in kwarg:
             self.fit_order = fitOrder
             
-        if self.fit_order is 2:
-            self.fitCoeff = np.polyfit(self.data[0], self.data[1], self.fit_order)
-            fitDataX = self.data[0]
-            fitDataY = self.data[1] - np.polyval(self.fitCoeff, self.data[0])
-            if np.min(fitDataY) < 0:
-                fitDataY += fitDataY + np.absolute(np.min(fitDataY))
-            self.subData = np.array([fitDataX, fitDataY])
+        self.fitCoeff = np.polyfit(self.data[0], self.data[1], self.fit_order)
+        fitDataX = self.data[0, 50:-50]
+        fitDataY = self.data[1, 50:-50] - np.polyval(self.fitCoeff, 
+                                                      self.data[0, 50:-50])
+        if np.min(fitDataY) < 0:
+            fitDataY = fitDataY + np.absolute(np.min(fitDataY))
+        self.subData = np.array([fitDataX, fitDataY])
             
-            print 'Quadratic background subtraction completed'
+        print 'background subtraction completed'
             
     def trimSubData(self,trimLen=50):
-    '''
-    Trim 50 data points from both ends of data.
-    '''
+        '''
+        Trim 50 data points from both ends of data.
+        '''
         self.subData = np.array([self.subData[0,trimLen:-trimLen], 
                                     self.subData[1,trimLen:-trimLen]])
 
     def blockFinder(self):
-    ''''
-    Performs Bayesian Block finding on subData and records change point array
-    Algorithm description is hard....
-    '''
+        '''
+        Performs Bayesian Block finding on subData and records change point array
+        Algorithm description is hard....
+        '''
         data_mode = 3
         numPts = len(self.cellData)
         tt = np.arange(numPts)

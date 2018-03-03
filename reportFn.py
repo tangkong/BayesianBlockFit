@@ -9,17 +9,17 @@ def genOptParamCSV(savePath, file, optParams):
     with open(savePath + basename(file)[:-7] + '_curveParams.csv', 'wb') as csv_file:
         writer = csv.writer(csv_file)
         if optParams['peakShape'] =='Voigt':
-            print('Array format: [x0, y0, I, alpha, gamma, FWHM]')
+            #print('Array format: [x0, y0, I, alpha, gamma, FWHM]')
             writer.writerow([ 'peak', 'curve', 'x0', 'y0', 
                                 'I', 'alpha', 'gamma', 'FWHM'])
         elif optParams['peakShape'] == 'Gaussian':
-            print('Array format: [x0, y0, I, sigma, FWHM]')
+            #print('Array format: [x0, y0, I, sigma, FWHM]')
             writer.writerow(['peak', 'curve', 'x0', 'y0', 'I', 'sigma', 'FWHM'])
         for key, item in optParams.items():
             if key != 'numCurves' and key != 'peakShape':
                 for i in range(len(item)):
-                    print('Param array for peak {0}, curve {1}: {2}'.format(key, i+1, 
-                                            np.array2string(item[i], precision=4)))
+                    #print('Param array for peak {0}, curve {1}: {2}'.format(key, i+1, 
+                                            #np.array2string(item[i], precision=4)))
 
                     writer.writerow([key, i] + list(item[i]))
     

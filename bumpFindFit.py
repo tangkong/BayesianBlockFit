@@ -1,5 +1,5 @@
 import numpy as np
-from peakFit import peakFit
+from peakFitResidIter import peakFit, calcFWHM
 
 def bumpFindFit(dat, peakShape, numCurves, savePath = None, filename = None):
     '''
@@ -68,6 +68,7 @@ def bumpFindFit(dat, peakShape, numCurves, savePath = None, filename = None):
     iCntMax = 0
 
     paramDict = {'numCurves': numCurves, 'peakShape': peakShape}
+    litFWHM = {}
     for k in range(numMax):
         currMax = idMax[k] 
 
@@ -84,15 +85,24 @@ def bumpFindFit(dat, peakShape, numCurves, savePath = None, filename = None):
         ############################################################################## 
         # Get parameters from peak fit
         if (savePath != None) and (filename != None):
-            optParam = peakFit(dat.subData, leftDatum, rightDatum, 
+            optParam, FWHM = peakFit(dat.subData, leftDatum, rightDatum, 
                                 peakShape, numCurves, savePath, filename)
         else:
-            optParam = peakFit(dat.subData, leftDatum, rightDatum, 
+            optParam, FWHM = peakFit(dat.subData, leftDatum, rightDatum, 
                                 peakShape, numCurves)
-       
+        
+        # Append FWHM to optimized parameters 
+        for j in range(len(optParam)):
+            optParam[j] = np.append(optParam[j], FWHM[j])
+
         ############################################################################## 
         # add to dictionary
         paramDict[k] = optParam
 
         
-    return paramDict
+        ############################################################################## 
+        # Calculate FWHM in a literal sense
+
+        litFWHM[k] = calcFWHM(dat.subData, leftDatum, rightDatum)
+        
+    return paramDict, litFWHM

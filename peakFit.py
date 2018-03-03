@@ -24,6 +24,7 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
     
     Output: ndarray of optimized parameters. 
         result[i] = opt. param of curve i
+        FWHM calculated depending on curve type
     ''' 
 
     # Convert left and right bounds to integers for indexing
@@ -60,14 +61,18 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
             # Space peak locations evenly
             xPosGuess = (xData[LDat] + xRange * (i+1) / (numCurves+1))
             
-            guess += [xPosGuess, np.mean(yData[domain]), 1, 0.05, 0.05]
-            
+            guess += [xPosGuess, np.min(yData[domain]), 
+                        np.max(yData[domain]) - np.min(yData[domain]),
+                         xRange / 10 / numCurves, xRange / 10 / numCurves]
+            #guess += [xPosGuess, np.min(yData[domain]), 1, 0.05, 0.05] 
+
             # concatenate lists for bounds
-            boundLower += [xData[LDat], np.min(yData[domain]), 0, 0, 0]
-            boundUpper += [xData[RDat], np.max(yData[domain]), np.inf, np.inf, np.inf]       
+            boundLower += [xData[0], np.min(yData), 0, 0, 0]
+            boundUpper += [xData[-1], np.inf, np.inf, np.inf, np.inf]       
             
         # Combine bounds into tuple for input
         bounds = tuple([boundLower, boundUpper])
+        print(bounds)
         
         try:
         # Curve fit function call using guess and bounds
@@ -76,7 +81,18 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
         except RuntimeError as e:
             print(e) 
             popt = np.array(guess)
+        
+        # Calculate FWHM for each peak fit
+        FWHM = []
+        c0 = 2.0056
+        c1 = 1.0593
+        for i in range(0, len(popt), 5): # grab fwhm for each peak
+            fg = 2*popt[i+3]*np.sqrt(2*np.log(2))
+            fl = 2*popt[i+4]
+            phi = fl / fg
+            FWHM.append(fg * (1-c0*c1 + np.sqrt(phi**2 + 2*c1*phi + (c0*c1)**2)))
 
+    
     elif peakShape == 'Gaussian':############################################
         func = gaussFn
         # Initialize guess params and bounds for number of curves
@@ -84,18 +100,18 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
         boundLower = []
         guess = []
         
-        
-        xWidth = xData[RDat] - xData[LDat]
         # parameter array: [x0, y0, Intensity, sigma]
         for i in range(numCurves): # for each curve
             # Space peak locations evenly
             xPosGuess = (xData[LDat] + xRange * (i+1) / (numCurves+1))
             
-            guess += [xPosGuess, np.mean(yData[domain]), np.max(yData[domain]), xWidth/2]
+            guess += [xPosGuess, np.min(yData[domain]), 
+                        np.max(yData[domain]) - np.min(yData[domain]), 
+                        xRange/10/numCurves]
             
             # concatenate lists for bounds
-            boundLower += [xData[LDat], np.min(yData[domain]), 0, 0]
-            boundUpper += [xData[RDat], np.max(yData[domain]), np.inf, np.inf]       
+            boundLower += [xData[0], np.min(yData), 0, 0]
+            boundUpper += [xData[-1], np.inf, np.inf, np.inf]       
             
         # Combine bounds into tuple for input
         bounds = tuple([boundLower, boundUpper])
@@ -107,12 +123,22 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
         except RuntimeError as e:
             print(e)
             popt = np.array(guess)
-   
 
+        # Calculate FWHM for each peak fit
+        FWHM = []
+        for i in range(0, len(popt), 4): # grab fwhm for each peak
+            FWHM.append(2*popt[i+3]*np.sqrt(2*np.log(2)))
+   
+    ###########################################################################
+    ### Calculate full width half maximum of given peaks
+    ###########################################################################
+
+    ###########################################################################
+    ### Plotting and saving
+    ###########################################################################
     if (savePath != None) and (filename != None):
         plt.figure(figsize=(8,8))
-
-
+    
     # Organize final parameters into array
     finalParams = []
     for j in range(numCurves):   # Plot each individual curve
@@ -123,21 +149,24 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
         
         if (savePath != None) and (filename != None): # Plot setup
             plt.plot(xData[domain], func(xData[domain], *guess[L:R]), 
-                    '--', label='guessed curve: ' + str(j))
-            plt.plot(xData[domain], func(xData[domain], *popt[L:R]), 
-                    '.', label='optimized curve: ' + str(j))
+                    '--', alpha=0.5, label='guessed curve: ' + str(j))
+            plt.plot(xData[domain], func(xData[domain], *popt[L:R]), '.', alpha=0.5, 
+                label='opt. curve {:.0f} FWHM = {:.3f}'.format(j, FWHM[j]))
         
     # Finish plotting 
     if (savePath != None) and (filename != None):
-        plt.plot(xData[domain], yData[domain], label='data')
-        plt.plot(xData[domain], func(xData[domain], *popt), label='combined data')
-        plt.plot(xData[loc], yData[loc], marker='o') # Max position
+        plt.plot(xData[domain], yData[domain], marker='s', color='k', label='data')
+        plt.plot(xData[domain], func(xData[domain], *popt), 
+                    color='r', label='combined data')
+        #plt.plot(xData[loc], yData[loc], marker='o', label='max point') # Max position
         plt.legend()
 
         plt.savefig(savePath + str(filename) + 'peakAt_' + 
                         '{:.3f}'.format(xData[loc]) + '.png')
+
+        #plt.text(np.max(xData[domain]), np.max(yData[domain]), r'FWHM = {0}'.format())
         
         plt.close()
     
         print('Plot generated for peak at: {:.3f}'.format(xData[loc]))
-    return finalParams
+    return finalParams, FWHM

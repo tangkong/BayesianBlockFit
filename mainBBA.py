@@ -5,23 +5,25 @@ import numpy as np
 import glob
 import os
 from os.path import basename
-import csv
 
 # Personal package import
 from BlockData import BlockData
-from peakFit import peakFit
+from peakFitResidIter import peakFit
 from bumpFindFit import bumpFindFit
+from reportFn import genOptParamCSV, genLitFWHMCSV
+
+import time
 
 ##############################################################
 ##############INPUT HERE######################################
 
-#path = os.path.expanduser('~/data/bl10-2/Jan2018/HiTp/data/Test/')
+#path = os.path.expanduser('~/data/bl1-5/Nov2017/CoTaZr/data/J4/Processed/')
 path = os.path.expanduser('~/Bayesianbumps/JaeProcPeakTst/')
 savePath = path + '_peak_detection/'
 
-peakShape = 'Gaussian'
+peakShape = 'Voigt'
 numCurves = 2 
-
+fit_order = 2 
 ##############End Input#######################################
 ##############################################################
 
@@ -36,9 +38,12 @@ if len(files) == 0:
 plt.close('all')
 
 fileGen = (x for x in files if basename(x)[-5]=='D')
+loopTime = []
 for file in fileGen:
+    start = time.time()
     peakCnt = 0
     # File data into array
+    print('============================================================')
     print file
     data = np.genfromtxt(file, delimiter = ',')
     Qlist = data[:,0]
@@ -46,18 +51,22 @@ for file in fileGen:
     dataArray = np.array([Qlist, IntAve])
 
     #### Data Structure object instantiation (data, fit_order, ncp_prior)
-    dataIn = BlockData(dataArray, 2, 0.5)
+    dataIn = BlockData(dataArray, fit_order, 0.5)
     #### has various functions
     
-    dataIn.bkgdSub() # background subtracted with polynomial of order = fit_order
-    dataIn.trimSubData() # Trim off some values (taken from original script)
+    # background subtracted with polynomial of order = fit_order, trims ends
+    dataIn.bkgdSub(fit_order=fit_order) 
+    #dataIn.trimSubData() # Trim off some values (taken from original script)
     
     # Plot bkgdSub Data
     plt.figure(figsize=(8,8))
-    plt.plot(Qlist, IntAve, label='raw data')
-    plt.plot(dataIn.subData[0], dataIn.subData[1], label='Background Subtracted')
-    plt.savefig(savePath + basename(file)[:-7] + '_plot.png')
+    plt.plot(Qlist, IntAve, label='Raw data', marker='s', color='k')
+    plt.plot(dataIn.subData[0], dataIn.subData[1],
+                 label='Background subtracted', color='r')
+    plt.plot(dataIn.subData[0], np.polyval(dataIn.fitCoeff, dataIn.subData[0]), 
+                '--', label='Background', alpha=0.5, color='k')
     plt.legend()
+    plt.savefig(savePath + basename(file)[:-7] + '_plot.png')
     plt.close()
 
     # Guess at noise level
@@ -71,26 +80,26 @@ for file in fileGen:
     
     
     # Get optimized parameters from fitting each block and plot
-    optParams = bumpFindFit(dataIn, peakShape, numCurves, 
+    optParams, litFWHM = bumpFindFit(dataIn, peakShape, numCurves, 
                             savePath, basename(file)[:-7])
     
     # Print information to terminal, print data to csv
-    with open(savePath + basename(file)[:-7] + 'curveParams.csv', 'wb') as csv_file:
-        writer = csv.writer(csv_file)
-        print('Fit ({0}) curve(s) per peak'.format(optParams['numCurves']))
-        print('Using ({0}) peak shape'.format(optParams['peakShape']))
-        if optParams['peakShape'] =='Voigt':
-            print('Array format: [x0, y0, I, alpha, gamma]')
-            writer.writerow([ 'peak', 'curve', 'x0', 'y0', 'I', 'alpha', 'gamma'])
-        elif optParams['peakShape'] == 'Gaussian':
-            print('Array format: [x0, y0, I, sigma]')
-            writer.writerow(['peak', 'curve', 'x0', 'y0', 'I', 'sigma'])
-        for key, item in optParams.items():
-            if key != 'numCurves' and key != 'peakShape':
-                for i in range(len(item)):
-                    print('Param array for peak {0}, curve {1}: {2}'.format(key, i+1, 
-                                            np.array2string(item[i], precision=4)))
+    print('Fit ({0}) curve(s) per peak'.format(optParams['numCurves']))
+    print('Using ({0}) peak shape'.format(optParams['peakShape']))
 
-                    writer.writerow([key, i] + list(item[i]))
-        
-    break
+    genOptParamCSV(savePath, file, optParams)
+
+    genLitFWHMCSV(savePath, file, litFWHM)
+    end = time.time()
+    
+    loopTime += [(end-start)]
+
+# Evaluate performance
+avgTime = np.mean(loopTime)
+maxTime = np.max(loopTime)
+print('============================================================')
+print('============================================================')
+print('Files finished processing') 
+print('-----Average {:.4f}s / file, max {:.4f}s / file'.format(avgTime, maxTime))
+print('-----Total Time Elapsed {:.4f}s'.format(np.sum(loopTime)))
+print('============================================================')
