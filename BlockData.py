@@ -1,23 +1,35 @@
+from scipy.optimize import curve_fit
+from scipy import integrate, signal
+from scipy.special import wofz
+from scipy.interpolate import UnivariateSpline
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import sys
+from os.path import basename
+
+#import personal modules
+from peakShapes import voigtFn, gaussFn
 
 class BlockData:
     '''
     Data wrapper object holding information for bayesian block analysis
     '''   
     
-    
-    
-    def __init__(self, dataArray, fit_order, ncp_prior):
+    def __init__(self, dataArray, fit_order, ncp_prior, peakShape):
         '''
         Initializes BlockData object with data array and basic parameters
         '''
         self.data = np.array(dataArray)
         self.fit_order = fit_order
         self.ncp_prior = ncp_prior
+        self.peakShape = peakShape
         
     def bkgdSub(self, **kwarg):
         '''
-        Perform crude polynomial background subtraction and offset data to be positive
+        Perform crude polynomial background subtraction and 
+        offset data to be positive
         '''
         if 'fitOrder' in kwarg:
             self.fit_order = fitOrder
@@ -63,7 +75,8 @@ class BlockData:
             last = []
 
             for r in range(numPts):
-                sumX1 = np.cumsum(self.subData[1,r::-1]) # y-data background subtracted
+                # y-data background subtracted
+                sumX1 = np.cumsum(self.subData[1,r::-1]) 
                 sumX0 = np.cumsum(self.cellData[r::-1]) # sigma guess
                 fitVec = (np.power(sumX1[r::-1],2) / (4 * sumX0[r::-1]))
 
@@ -132,3 +145,87 @@ class BlockData:
 
         self.cptUse       = cptUse
         return None # end blockFinder method
+
+    def genResidPlot(self, savePath, file):
+        '''
+        Generate full plot with peaks and residuals.
+        Input: Save path, filename
+        Input: optParams dictionary
+
+        uses subData as data, 
+        '''
+
+        fitYData = np.array([])
+        xData = self.subData[0]
+        yData = self.subData[1]
+
+        if self.peakShape == 'Voigt':
+            func = voigtFn
+        elif self.peakShape == 'Gaussian':
+            func = gaussFn
+        
+        # Mega bandaid...to figure out indexing later
+        temp = self.peakDomains[len(self.peakDomains)-1]
+        self.peakDomains[len(self.peakDomains)-1] = (temp[0], temp[1]+1)
+    
+        # Stitch together fitted peaks
+        for i in range(len(self.peakDomains)):
+            LDat, RDat = self.peakDomains[i]
+
+            domain = np.arange(int(LDat), int(RDat))
+            xRange = xData[domain]
+
+            # Get relevent fit params
+            params = self.optParams[i]
+            # Flatten / unroll fit params
+            flatParams = np.concatenate(params).tolist()
+            
+            # concat data for each peak, all curves combined
+            fitYData = np.append(fitYData, func(xData[domain], *flatParams))
+
+        # Generate residual data array
+        resid = yData - fitYData
+        RSS = np.sum(resid**2)
+        
+        pctErr = [] 
+        # Get average percent error in each block
+        for k in range(len(self.peakDomains)):
+            LDat, RDat = self.peakDomains[k]
+
+            domain = np.arange(int(LDat), int(RDat))
+            
+            error = np.mean(np.absolute(resid[domain]) / (yData[domain]+1)) * 100
+            pctErr += [error]
+
+        # Plot all and save ######################################################
+        # Plot data and fit
+        fig = plt.figure(figsize=(10,8))
+        frame1 = fig.add_axes((0.1, 0.3, 0.8, 0.6))
+        plt.plot(xData, yData, 'sk', label='data')
+        plt.plot(xData, fitYData, '-r', label='fit')
+
+        # vertical lines at plot boundaries
+        for j in range(len(self.peakDomains)):
+            xLowerLoc = xData[int(self.peakDomains[j][0])]
+            plt.axvline(x=xLowerLoc, linestyle='--', color='k')
+            plt.text(xLowerLoc, np.max(yData), '{:.3f}%'.format(pctErr[j]))
+
+        plt.legend()
+        plt.grid()
+        frame1.set_xticklabels([])
+
+        # Residual plot
+        frame2 = fig.add_axes((0.1,0.1,0.8,0.2))
+        plt.plot(xData, resid, '-b', label='residual')
+        # vertical lines at plot boundaries
+        for j in range(len(self.peakDomains)):
+            plt.axvline(x=xData[int(self.peakDomains[j][0])],
+                            linestyle='--', color='k')
+        plt.legend()
+        plt.grid()
+        plt.savefig(savePath + str(basename(file)[:-7]) + '_residPlot.png')
+        
+        plt.close()
+
+        return pctErr 
+    

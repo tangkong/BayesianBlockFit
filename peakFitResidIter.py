@@ -191,6 +191,7 @@ def calcFWHM(data, LDatum, RDatum):
     '''
     Calculate full width half maximum literally
     '''
+
     roots = []
     # Convert left and right bounds to integers for indexing
     LDat = int(LDatum)
@@ -200,12 +201,17 @@ def calcFWHM(data, LDatum, RDatum):
     # Separate x and y data series
     xData = data[0]
     yData = data[1]
-  
+    
+
     # Locate position of max in domain 
     maxInd = np.where(yData[domain] == np.max(yData[domain]))[0][0]
     # Shift according to LDat since data is complete 
     loc = int(LDat + maxInd)  # given all data
- 
+
+    # If not enough points to fit spline, return 'N/A' 
+    if len(xData[domain]) < 5:
+        return [xData[loc], 'N/A']
+
     #offset to 0 
     yDataOffset = yData - np.min(yData[domain]) 
     yRange = np.max(yDataOffset[domain])

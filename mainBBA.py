@@ -10,14 +10,14 @@ from os.path import basename
 from BlockData import BlockData
 from peakFitResidIter import peakFit
 from bumpFindFit import bumpFindFit
-from reportFn import genOptParamCSV, genLitFWHMCSV
+from reportFn import genOptParamCSV, genPeakReportCSV
 
 import time
 
 ##############################################################
 ##############INPUT HERE######################################
 
-#path = os.path.expanduser('~/data/bl1-5/Nov2017/CoTaZr/data/J4/Processed/')
+#path = os.path.expanduser('~/data/bl10-2/Jan2018/HiTp/data/Jae/J8_th8_19K/images/Processed/')
 path = os.path.expanduser('~/Bayesianbumps/JaeProcPeakTst/')
 savePath = path + '_peak_detection/'
 
@@ -51,7 +51,7 @@ for file in fileGen:
     dataArray = np.array([Qlist, IntAve])
 
     #### Data Structure object instantiation (data, fit_order, ncp_prior)
-    dataIn = BlockData(dataArray, fit_order, 0.5)
+    dataIn = BlockData(dataArray, fit_order, 0.5, peakShape)
     #### has various functions
     
     # background subtracted with polynomial of order = fit_order, trims ends
@@ -80,19 +80,26 @@ for file in fileGen:
     
     
     # Get optimized parameters from fitting each block and plot
-    optParams, litFWHM = bumpFindFit(dataIn, peakShape, numCurves, 
+    paramDict, litFWHM = bumpFindFit(dataIn, peakShape, numCurves, 
                             savePath, basename(file)[:-7])
     
+
     # Print information to terminal, print data to csv
-    print('Fit ({0}) curve(s) per peak'.format(optParams['numCurves']))
-    print('Using ({0}) peak shape'.format(optParams['peakShape']))
+    print('---------Fitting Finished')
+    print('Fit ({0}) curve(s) per peak'.format(paramDict['numCurves']))
+    print('Using ({0}) peak shape'.format(paramDict['peakShape']))
 
-    genOptParamCSV(savePath, file, optParams)
+    # Generate residual plot using stored optParams
+    pctErr = dataIn.genResidPlot(savePath, file)
+    
+    genOptParamCSV(savePath, file, paramDict)
 
-    genLitFWHMCSV(savePath, file, litFWHM)
+    genPeakReportCSV(savePath, file, litFWHM, pctErr)
     end = time.time()
     
     loopTime += [(end-start)]
+
+    break
 
 # Evaluate performance
 avgTime = np.mean(loopTime)

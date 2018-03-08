@@ -6,6 +6,7 @@ def genOptParamCSV(savePath, file, optParams):
     '''
     Generate report CSV for given optParam dict and save path
     '''
+
     with open(savePath + basename(file)[:-7] + '_curveParams.csv', 'wb') as csv_file:
         writer = csv.writer(csv_file)
         if optParams['peakShape'] =='Voigt':
@@ -25,15 +26,15 @@ def genOptParamCSV(savePath, file, optParams):
     
     print('OptParam report generated')
 
-def genLitFWHMCSV(savePath, file, litFWHM):
+def genPeakReportCSV(savePath, file, litFWHM, pctErr):
     '''
     Generate report CSV for lit FWHM
     '''
-    with open(savePath + basename(file)[:-7] + '_FWHM.csv', 'wb') as csv_file:
+    with open(savePath + basename(file)[:-7] + '_peakParams.csv', 'wb') as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow(['peakNumber', 'peakLocation', 'FWHM'])
+        writer.writerow(['peakNumber', 'peakLocation', 'FWHM', '% Error'])
 
         for key, item in litFWHM.items():
-            writer.writerow([key] + list(item))
+            writer.writerow([key] + list(item) + [pctErr[key]])
     
-    print('Literal FWHM report generated')
+    print('Peak report generated')

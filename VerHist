@@ -18,9 +18,19 @@ v0.2:
 -Reporting FWHM based on curve profiles
 -Implemented report for literal FWHM
 
+v0.3:
+-Separated paramDict and optParams.  paramDict contains FWHM and peak
+    shape info while optParams can be fed into peak functions
+-Created plotting protocol for residuals.  
+    all data is offset by 1 to avoid divide by zero
+-Store peak bounds in data structure (BlockData)
+
+-Thinking about future feature extraction, aim to distill all relevant 
+    parameters into BlockData Structure
+    * Blocks, Peak bounds, FitParams(per peak), litFWHM
+    * Future: FSDP?  others?
+
+-Place all parameters for CSV output into summary params dict (paramDict)
 
 To implement:
-Error tracking.  (Covariance matrix?  Residual?)
-Block visualization.  Proper overarching visualization?
-Timing protocol to assess efficiency
-
+mapping of nearest neighbors and First Sharp Diffraction Peak

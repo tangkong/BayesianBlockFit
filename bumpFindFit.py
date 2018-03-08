@@ -68,8 +68,11 @@ def bumpFindFit(dat, peakShape, numCurves, savePath = None, filename = None):
     iCntMax = 0
 
     paramDict = {'numCurves': numCurves, 'peakShape': peakShape}
-    litFWHM = {}
+    dat.litFWHM = {}
+    dat.peakDomains = {}  # Datum for each peak
+    dat.optParams = {}    # Optimized params for each peak
     for k in range(numMax):
+        optParamFWHM = []
         currMax = idMax[k] 
 
         # find info on current max block
@@ -90,19 +93,21 @@ def bumpFindFit(dat, peakShape, numCurves, savePath = None, filename = None):
         else:
             optParam, FWHM = peakFit(dat.subData, leftDatum, rightDatum, 
                                 peakShape, numCurves)
-        
-        # Append FWHM to optimized parameters 
+
+
+        # Append FWHM to larger optimized parameters list
         for j in range(len(optParam)):
-            optParam[j] = np.append(optParam[j], FWHM[j])
+            optParamFWHM.append(np.append(optParam[j], FWHM[j]))
 
         ############################################################################## 
         # add to dictionary
-        paramDict[k] = optParam
-
+        paramDict[k] = optParamFWHM
+        dat.peakDomains[k] = (leftDatum, rightDatum)
+        dat.optParams[k] = optParam
         
         ############################################################################## 
         # Calculate FWHM in a literal sense
 
-        litFWHM[k] = calcFWHM(dat.subData, leftDatum, rightDatum)
+        dat.litFWHM[k] = calcFWHM(dat.subData, leftDatum, rightDatum)
         
-    return paramDict, litFWHM
+    return paramDict, dat.litFWHM
