@@ -5,6 +5,8 @@ import numpy as np
 import glob
 import os
 from os.path import basename
+import Tkinter, tkFileDialog
+import pyinotify
 
 # Personal package import
 from BlockData import BlockData
@@ -17,9 +19,14 @@ import time
 ##############################################################
 ##############INPUT HERE######################################
 
-#path = os.path.expanduser('~/data/bl10-2/Jan2018/HiTp/data/Jae/J8_th8_19K/images/Processed/')
-path = os.path.expanduser('~/Bayesianbumps/JaeProcPeakTst/')
+path = os.path.expanduser('~/data/bl1-5/Nov2017/NiTaZr/data/J10/Processed/')
+#path = os.path.expanduser('~/Bayesianbumps/JaeProcPeakTst/')
 savePath = path + '_peak_detection/'
+
+root = Tkinter.Tk()
+root.withdraw()
+
+filePath = tkFileDialog.askopenfilename()
 
 peakShape = 'Voigt'
 numCurves = 2 
@@ -61,10 +68,10 @@ for file in fileGen:
     # Plot bkgdSub Data
     plt.figure(figsize=(8,8))
     plt.plot(Qlist, IntAve, label='Raw data', marker='s', color='k')
+    plt.plot(dataIn.subData[0], dataIn.bkgd, 
+                '--', label='Background', color='g')
     plt.plot(dataIn.subData[0], dataIn.subData[1],
                  label='Background subtracted', color='r')
-    plt.plot(dataIn.subData[0], np.polyval(dataIn.fitCoeff, dataIn.subData[0]), 
-                '--', label='Background', alpha=0.5, color='k')
     plt.legend()
     plt.savefig(savePath + basename(file)[:-7] + '_plot.png')
     plt.close()

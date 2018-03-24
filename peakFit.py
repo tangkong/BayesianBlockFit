@@ -36,7 +36,7 @@ def peakFit(data, LDatum, RDatum, peakShape, numCurves,
     # Separate x and y data series
     xData = data[0]
     yData = data[1]
-    
+
     # Locate position of max in domain 
     maxInd = np.where(yData[domain] == np.max(yData[domain]))[0][0]
     # Shift according to LDat since data is complete 

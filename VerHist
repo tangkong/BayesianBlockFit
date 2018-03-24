@@ -32,5 +32,16 @@ v0.3:
 
 -Place all parameters for CSV output into summary params dict (paramDict)
 
+
+v0.4: 
+-modified chebyshev poly for background subtraction.  
+-modify saving of background to save interpolated data array rather than fit parameters
+    (new bkgd sub adds 10s to processing time....effectively doubling)
+-Getting prepared to incorporate tkinter and pyinotify
+-
+
 To implement:
 mapping of nearest neighbors and First Sharp Diffraction Peak
+Organization of attributes into csv
+on the fly functionality
+wafer map 

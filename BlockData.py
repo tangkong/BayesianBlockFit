@@ -1,7 +1,8 @@
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, basinhopping
 from scipy import integrate, signal
 from scipy.special import wofz
-from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import UnivariateSpline, interp1d
+from numpy.polynomial.chebyshev import chebval
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -28,6 +29,90 @@ class BlockData:
         
     def bkgdSub(self, **kwarg):
         '''
+        Perform modified chebyshev polynomial subtraction and penalize with cost fn
+        Offset data to be positive
+    
+        Adapted from Fang Ren segmentation program
+        '''
+        
+        # Truncate data 
+        trimDataX = self.data[0, 50:-50]
+        trimDataY = self.data[1, 50:-50]
+
+        def downsamp(size, x, y):
+            '''
+            downsample data based on size parameter.  Return downsampled data
+            '''
+            yNew = y[::size] 
+            xNew = x[::size] 
+            
+            return xNew, yNew
+        
+        def chebFunc(x, *params):
+            '''
+            Modified chebyshev function with 1/x 
+            '''
+            params = params[0]
+            y = chebval(x, params[:4])
+            E = params[4]
+            y = y + E/x
+            return y
+
+
+        def objFunc(*params):
+            '''
+            implement cost function for modified chevbyshev function
+            varies cost to emphasize low Q region
+            Scoping pulls trimmed x, y data from surrounding scope
+
+            return: cost of fit 
+            '''
+            
+            params = params[0]
+            J = 0
+            fit = chebval(X, params[:4])
+            E = params[4]
+            fit = fit + E / X
+
+            for i in range(len(Y)):
+                if X[i] < 1:    # Treat low Q equally
+                    J = J + (Y[i] - fit[i])**4
+                else:
+                    if Y[i] < fit[i]:
+                        J = J + (Y[i] - fit[i])**4
+                    if Y[i] >= fit[i]:
+                        J = J + (Y[i] - fit[i])**2
+            return J
+        
+        # Create a sparse data set for fitting
+        X, Y = downsamp(20, trimDataX, trimDataY)
+
+        x0 = [1,1,1,1,1]
+        result = basinhopping(objFunc, x0)
+        bkgd_sparse = chebFunc(X, result.x)
+        # create function that interpolates sparse bkgd
+        f = interp1d(X, bkgd_sparse, kind='cubic', bounds_error=False)
+
+        # expressed background values
+        bkgd = f(trimDataX)
+
+        subDataY = trimDataY - bkgd
+        if np.min(subDataY) < 0:
+            subDataY = subDataY + np.absolute(np.min(subDataY))
+    
+        # Dump any nan values in all data
+        finalDataY = subDataY[~np.isnan(subDataY)]
+        finalDataX = trimDataX[~np.isnan(subDataY)]
+        bkgd = bkgd[~np.isnan(subDataY)]
+
+        # Save background subtracted data
+        self.subData = np.array([finalDataX, finalDataY])
+        self.bkgd = bkgd
+        
+        print 'background subtraction completed'
+
+    def bkgdSubPoly(self, **kwarg):
+        '''
         Perform crude polynomial background subtraction and 
         offset data to be positive
         '''
@@ -41,6 +126,7 @@ class BlockData:
         if np.min(fitDataY) < 0:
             fitDataY = fitDataY + np.absolute(np.min(fitDataY))
         self.subData = np.array([fitDataX, fitDataY])
+        self.bkgd = np.polyval(self.fitCoeff, self.data[0, 50:-50])
             
         print 'background subtraction completed'
             
@@ -197,6 +283,8 @@ class BlockData:
             error = np.mean(np.absolute(resid[domain]) / (yData[domain]+1)) * 100
             pctErr += [error]
 
+        # Store pctErr for each peak
+        self.pctErr = pctErr
         # Plot all and save ######################################################
         # Plot data and fit
         fig = plt.figure(figsize=(10,8))
@@ -226,6 +314,6 @@ class BlockData:
         plt.savefig(savePath + str(basename(file)[:-7]) + '_residPlot.png')
         
         plt.close()
-
+        
         return pctErr 
     
